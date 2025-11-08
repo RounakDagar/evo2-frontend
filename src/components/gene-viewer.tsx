@@ -1,293 +1,367 @@
 "use client";
 
 import {
-  type ChangeEvent,
-  forwardRef,
-  useCallback,
-  useImperativeHandle,
-  useRef,
-  useState,
-  useEffect,
-} from "react";
-import { type GeneFromSearch, type GeneBounds } from "~/utils/genome-api";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Input } from "./ui/input";
+  fetchGeneDetails,
+  type GeneBounds,
+  type GeneDetailsFromSearch,
+  type GeneFromSearch,
+  type ClinvarVariant,
+  fetchGeneSequence as apiFetchGeneSequence,
+  fetchClinvarVariants as apiFetchClinvarVariants,
+} from "~/utils/genome-api";
 import { Button } from "./ui/button";
-import { AlertCircle, BrainCircuit, Loader2 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { GeneInformation } from "./gene-information";
+import { GeneSequence } from "./gene-sequence";
+import KnownVariants from "./known-variants";
+import { VariantComparisionModal } from "./variant-comparision-modal";
+import VariantAnalysis, {
+  type VariantAnalysisHandle,
+} from "./variant-analysis";
 import { Skeleton } from "./ui/skeleton";
-import { formatNumberWithCommas } from "~/utils/coloring-utils";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { cn } from "~/lib/utils";
 
-// Mock API call - replace with your actual API logic
-async function mockFetchEvo2Analysis(
-  position: number,
-  ref: string,
-  alt: string,
-) {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-
-  // Simulate a pathogenic result
-  if (alt.toUpperCase() === "A") {
-    return {
-      log_odds: -2.456,
-      score: 0.82,
-      classification: "Pathogenic",
-    };
-  }
-  // Simulate a benign result
-  return {
-    log_odds: 0.789,
-    score: 0.15,
-    classification: "Benign",
-  };
-}
-
-// Types
-export type VariantAnalysisHandle = {
-  focusAlternativeInput: () => void;
-};
-
-type AnalysisResult = {
-  log_odds: number;
-  score: number;
-  classification: "Pathogenic" | "Benign";
-};
-
-type VariantAnalysisProps = {
+export default function GeneViewer({
+  gene,
+  genomeId,
+  onClose,
+}: {
   gene: GeneFromSearch;
   genomeId: string;
-  chromosome: string;
-  clinvarVariants: unknown[]; // Not used in this component directly, but passed
-  referenceSequence: string | null;
-  sequencePosition: number | null;
-  geneBounds: GeneBounds | null;
-};
+  onClose: () => void;
+}) {
+  // --- All your original state ---
+  const [geneSequence, setGeneSequence] = useState("");
+  const [geneDetail, setGeneDetail] = useState<GeneDetailsFromSearch | null>(
+    null,
+  );
+  const [geneBounds, setGeneBounds] = useState<GeneBounds | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [startPosition, setStartPosition] = useState<string>("");
+  const [endPosition, setEndPosition] = useState<string>("");
+  const [isLoadigSequence, setIsLoadingSequence] = useState(false);
 
-const VariantAnalysis = forwardRef<VariantAnalysisHandle, VariantAnalysisProps>(
-  (
-    {
-      gene,
-      genomeId,
-      chromosome,
-      referenceSequence,
-      sequencePosition,
-      geneBounds,
-    },
-    ref,
+  const [clinvarVariants, setClinvarVariants] = useState<ClinvarVariant[]>([]);
+  const [isLoadingClinvar, setIsLoadingClinvar] = useState(false);
+  const [clinvarError, setClinvarError] = useState<string | null>(null);
+
+  const [actualRange, setActualRange] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
+
+  const [comparisionVariant, setComparisionVariant] =
+    useState<ClinvarVariant | null>(null);
+  const [activeSequencePosition, setActiveSequencePosition] = useState<
+    number | null
+  >(null);
+  const [activeReferenceNucleotide, setActiveReferenceNucleotide] = useState<
+    string | null
+  >(null);
+
+  const variantAnalysisRef = useRef<VariantAnalysisHandle>(null);
+  
+  // New state for "wow factor" pulse
+  const [highlightAnalysis, setHighlightAnalysis] = useState(false);
+
+  // --- All your original logic/handlers ---
+  // --- (This is 100% your working logic) ---
+  const updateClinvarVariant = (
+    clinvar_id: string,
+    updateVariant: ClinvarVariant,
   ) => {
-    const [position, setPosition] = useState("");
-    const [reference, setReference] = useState("");
-    const [alternative, setAlternative] = useState("");
+    setClinvarVariants((currentVariants) =>
+      currentVariants.map((v) =>
+        v.clinvar_id == clinvar_id ? updateVariant : v,
+      ),
+    );
+  };
 
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [result, setResult] = useState<AnalysisResult | null>(null);
+  const fetchGeneSequence = useCallback(
+    async (start: number, end: number) => {
+      try {
+        setIsLoadingSequence(true);
+        setError(null);
 
-    const alternativeInputRef = useRef<HTMLInputElement>(null);
+        const {
+          sequence,
+          actualRange: fetchedRange,
+          error: apiError,
+        } = await apiFetchGeneSequence(gene.chrom, start, end, genomeId);
 
-    // Update state when props change
-    useEffect(() => {
-      if (sequencePosition) {
-        setPosition(formatNumberWithCommas(sequencePosition));
+        setGeneSequence(sequence);
+        setActualRange(fetchedRange);
+
+        if (apiError) {
+          setError(apiError);
+        }
+        // console.log(sequence);
+      } catch (err) {
+        setError("Failed to load sequence data");
+      } finally {
+        setIsLoadingSequence(false);
       }
-      if (referenceSequence) {
-        setReference(referenceSequence);
-      }
-      // Clear alternative and results when a new position is selected
-      setAlternative("");
-      setResult(null);
-      setError(null);
-    }, [sequencePosition, referenceSequence]);
+    },
+    [gene.chrom, genomeId],
+  );
 
-    useImperativeHandle(ref, () => ({
-      focusAlternativeInput: () => {
-        alternativeInputRef.current?.focus();
-      },
-    }));
-
-    const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!position || !reference || !alternative) {
-        setError("All fields are required for analysis.");
-        return;
-      }
-      
-      const numPosition = parseInt(position.replace(/,/g, ''));
-      if (isNaN(numPosition)) {
-        setError("Position must be a valid number.");
-        return;
-      }
-
+  useEffect(() => {
+    const initializeGeneData = async () => {
       setIsLoading(true);
       setError(null);
-      setResult(null);
+      setGeneDetail(null);
+      setStartPosition("");
+      setEndPosition("");
+
+      if (!gene.gene_id) {
+        setError("Gene ID is missing, cannot fetch details");
+        setIsLoading(false);
+        return;
+      }
 
       try {
-        // TODO: Replace with your actual backend API call
-        const analysisResult = await mockFetchEvo2Analysis(
-          numPosition,
-          reference,
-          alternative,
-        );
-        setResult({
-          ...analysisResult,
-          classification: analysisResult.classification as "Pathogenic" | "Benign",
-        });
-      } catch (err) {
-        setError("Failed to run analysis. Please try again.");
+        const {
+          geneDetails: fetchedDetails,
+          geneBounds: fetchedGeneBounds,
+          initialRange: fetchedRange,
+        } = await fetchGeneDetails(gene.gene_id);
+
+        setGeneDetail(fetchedDetails);
+        setGeneBounds(fetchedGeneBounds);
+
+        if (fetchedRange) {
+          setStartPosition(String(fetchedRange.start));
+          setEndPosition(String(fetchedRange.end));
+
+          //Fetch Gene Sequence
+          await fetchGeneSequence(fetchedRange.start, fetchedRange.end);
+        }
+        // console.log(fetchedDetails);
+      } catch {
+        setError("Failed to load gene information. Please try again.");
       } finally {
         setIsLoading(false);
       }
     };
 
-    const getResultColor = (classification: string) => {
-      return classification === "Pathogenic"
-        ? "text-destructive"
-        : "text-green-500";
-    };
+    initializeGeneData();
+  }, [gene, genomeId, fetchGeneSequence]);
 
-    return (
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-lg font-medium">
-            Run Evo2 Variant Analysis
-          </CardTitle>
-          <CardDescription>
-            Enter a single nucleotide polymorphism (SNP) to analyze its
-            pathogenicity.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Position
-                </label>
-                <Input
-                  placeholder="e.g., 43,044,295"
-                  value={position}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setPosition(formatNumberWithCommas(e.target.value))
-                  }
-                  disabled={isLoading}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Reference (Ref)
-                </label>
-                <Input
-                  placeholder="e.g., C"
-                  value={reference}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setReference(e.target.value.toUpperCase())
-                  }
-                  maxLength={1}
-                  disabled={isLoading}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">
-                  Alternative (Alt)
-                </label>
-                <Input
-                  ref={alternativeInputRef}
-                  placeholder="e.g., A"
-                  value={alternative}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setAlternative(e.target.value.toUpperCase())
-                  }
-                  maxLength={1}
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
+  const handleSequenceClick = useCallback(
+    (position: number, nucleotide: string) => {
+      setActiveSequencePosition(position);
+      setActiveReferenceNucleotide(nucleotide);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (variantAnalysisRef.current) {
+        variantAnalysisRef.current.focusAlternativeInput();
+      }
+      // "Wow factor" pulse animation
+      setHighlightAnalysis(true);
+      setTimeout(() => setHighlightAnalysis(false), 1500);
+    },
+    [],
+  );
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+  const handleLoadSequence = useCallback(() => {
+    const start = parseInt(startPosition.replace(/,/g, ''));
+    const end = parseInt(endPosition.replace(/,/g, ''));
 
-            <Button
-              type="submit"
-              className="w-full sm:w-auto"
-              disabled={isLoading || !position || !reference || !alternative}
-            >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <BrainCircuit className="mr-2 h-4 w-4" />
-              )}
-              Run Analysis
-            </Button>
-          </form>
+    let validationError: string | null = null;
 
-          {isLoading && <AnalysisSkeleton />}
+    if (isNaN(start) || isNaN(end)) {
+      validationError = "Please enter valid start and end positions.";
+    } else if (start >= end) {
+      validationError = "Start position must be less than end position.";
+    } else if (geneBounds) {
+      const minBound = Math.min(geneBounds.min, geneBounds.max);
+      const maxBound = Math.max(geneBounds.min, geneBounds.max);
 
-          {result && !isLoading && (
-            <div className="mt-6 rounded-lg border bg-accent/50 p-6">
-              <h3 className="text-md font-semibold text-foreground">
-                Analysis Result
-              </h3>
-              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="flex flex-col">
-                  <span className="text-sm text-muted-foreground">
-                    Classification
-                  </span>
-                  <span
-                    className={`text-2xl font-bold ${getResultColor(
-                      result.classification,
-                    )}`}
-                  >
-                    {result.classification}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm text-muted-foreground">Score</span>
-                  <span className="text-2xl font-bold text-foreground">
-                    {result.score.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm text-muted-foreground">
-                    Log Odds
-                  </span>
-                  <span className="text-2xl font-bold text-foreground">
-                    {result.log_odds.toFixed(3)}
-                  </span>
-                </div>
-              </div>
-            </div>
+      if (start < minBound) {
+        validationError = `Start position (${start.toLocaleString()}) is below the minimum value (${minBound.toLocaleString()}).`;
+      } else if (end > maxBound) {
+        validationError = `End position (${end.toLocaleString()}) exceeds the maximum value (${maxBound.toLocaleString()}).`;
+      }
+
+      if (end - start > 10000) {
+        validationError = `Selected range exceeds maximum view range of 10,000 bp.`;
+      }
+    }
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setError(null);
+    fetchGeneSequence(start, end);
+  }, [startPosition, endPosition, fetchGeneSequence, geneBounds]);
+
+  const fetchClinvarVariants = useCallback(async () => {
+    if (!gene.chrom || !geneBounds) return;
+
+    setIsLoadingClinvar(true);
+    setClinvarError(null);
+
+    try {
+      const variants = await apiFetchClinvarVariants(
+        gene.chrom,
+        geneBounds,
+        genomeId,
+      );
+      setClinvarVariants(variants);
+      console.log(variants);
+    } catch (error) {
+      setClinvarError("Failed to fetch ClinVar variants");
+      setClinvarVariants([]);
+    } finally {
+      setIsLoadingClinvar(false);
+    }
+  }, [gene.chrom, geneBounds, genomeId]);
+
+  useEffect(() => {
+    if (geneBounds) {
+      fetchClinvarVariants();
+    }
+  }, [geneBounds, fetchClinvarVariants]);
+
+  const showComparision = (variant: ClinvarVariant) => {
+    if (variant.evo2Result) {
+      setComparisionVariant(variant);
+    }
+  };
+  // --- End of original logic ---
+
+
+  if (isLoading) {
+    return <GeneViewerSkeleton />;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* --- Sticky Sub-Header --- */}
+      <div className="sticky top-16 z-40 -mt-2 bg-background/95 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="cursor-pointer"
+            onClick={onClose}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to results
+          </Button>
+          <h1 className="truncate text-right text-2xl font-semibold text-foreground">
+            {gene.symbol}
+            <span className="ml-3 hidden text-lg font-light text-muted-foreground sm:inline">
+              {gene.name}
+            </span>
+          </h1>
+        </div>
+      </div>
+      
+      {/* --- Main Grid Layout --- */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* --- Main Content Column --- */}
+        <div className="space-y-6 lg:col-span-2">
+          
+          {/* --- Global Error Display --- */}
+          {error && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>An Error Occurred</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
-        </CardContent>
-      </Card>
-    );
-  },
-);
 
-VariantAnalysis.displayName = "VariantAnalysis";
-export default VariantAnalysis;
+          <div
+            className={cn(
+              "rounded-lg transition-all duration-300",
+              highlightAnalysis && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+            )}
+          >
+            <VariantAnalysis
+              ref={variantAnalysisRef}
+              gene={gene}
+              genomeId={genomeId}
+              chromosome={gene.chrom}
+              clinvarVariants={clinvarVariants}
+              referenceSequence={activeReferenceNucleotide}
+              sequencePosition={activeSequencePosition}
+              geneBounds={geneBounds}
+            />
+          </div>
 
-const AnalysisSkeleton = () => (
-  <div className="mt-6 rounded-lg border bg-accent/50 p-6">
-    <Skeleton className="h-6 w-40" />
-    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <div className="flex flex-col space-y-2">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-8 w-32" />
+          <GeneSequence
+            geneBounds={geneBounds}
+            geneDetail={geneDetail}
+            startPosition={startPosition}
+            endPosition={endPosition}
+            onStartPositionChange={setStartPosition}
+            onEndPositionChange={setEndPosition}
+            sequenceData={geneSequence}
+            sequenceRange={actualRange}
+            isLoading={isLoadigSequence}
+            error={null} // Error is handled globally now
+            onSequenceLoadRequest={handleLoadSequence}
+            onSequenceClick={handleSequenceClick}
+            maxViewRange={10000}
+          />
+
+          <KnownVariants
+            refreshVariants={fetchClinvarVariants}
+            showComparision={showComparision}
+            updateClinvarVariant={updateClinvarVariant}
+            clinvarVariants={clinvarVariants}
+            isLoadingClinvar={isLoadingClinvar}
+            clinvarError={clinvarError}
+            genomeId={genomeId}
+            gene={gene}
+          />
+        </div>
+
+        {/* --- Sticky Sidebar Column --- */}
+        <div className="lg:col-span-1">
+          <div className="sticky top-36 space-y-6">
+            <GeneInformation
+              gene={gene}
+              geneDetail={geneDetail}
+              geneBounds={geneBounds}
+            />
+          </div>
+        </div>
       </div>
-      <div className="flex flex-col space-y-2">
-        <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-8 w-20" />
+
+      <VariantComparisionModal
+        comparisionVariant={comparisionVariant}
+        onClose={() => setComparisionVariant(null)}
+      />
+    </div>
+  );
+}
+
+// Premium Skeleton for Gene Viewer Loading
+const GeneViewerSkeleton = () => (
+  <div className="space-y-6">
+    {/* Skeleton Sub-Header */}
+    <div className="flex items-center justify-between py-4">
+      <Skeleton className="h-9 w-36" />
+      <Skeleton className="h-8 w-64" />
+    </div>
+
+    {/* Skeleton Grid */}
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Main Content Skeleton */}
+      <div className="space-y-6 lg:col-span-2">
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-96 w-full" />
+        <Skeleton className="h-48 w-full" />
       </div>
-      <div className="flex flex-col space-y-2">
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-8 w-24" />
+      {/* Sidebar Skeleton */}
+      <div className="lg:col-span-1">
+        <Skeleton className="h-80 w-full" />
       </div>
     </div>
   </div>

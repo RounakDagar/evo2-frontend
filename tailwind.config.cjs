@@ -1,6 +1,10 @@
+// @ts-check
+import defaultTheme from "tailwindcss/defaultTheme"; // <-- FIX 1: Import the whole theme
+import tailwindcssAnimate from "tailwindcss-animate";
+
 /** @type {import('tailwindcss').Config} */
-module.exports = {
-  darkMode: ["class"],
+const config = {
+  darkMode: "class",
   content: [
     './pages/**/*.{js,ts,jsx,tsx}',
     './components/**/*.{js,ts,jsx,tsx}',
@@ -18,8 +22,9 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-inter)", "sans-serif"],
-        mono: ["var(--font-jetbrains-mono)", "monospace"],
+        // FIX 2: Access fontFamily from the imported defaultTheme
+        sans: ["var(--font-inter)", ...defaultTheme.fontFamily.sans],
+        mono: ["var(--font-jetbrains-mono)", ...defaultTheme.fontFamily.mono],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -78,5 +83,7 @@ module.exports = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
-}
+  plugins: [tailwindcssAnimate],
+};
+
+export default config;

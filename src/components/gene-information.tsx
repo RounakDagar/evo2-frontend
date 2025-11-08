@@ -1,107 +1,103 @@
-"use client";
-
-import {
-  type GeneBounds,
-  type GeneDetailsFromSearch,
-  type GeneFromSearch,
-} from "~/utils/genome-api";
+import type { GeneBounds, GeneDetailsFromSearch, GeneFromSearch } from "~/utils/genome-api";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-// import { Skeleton } from "./ui/skeleton";
-import { Skeleton } from "./ui/skeleton";
+import { ExternalLink } from "lucide-react";
 
-export function GeneInformation({
-  gene,
-  geneDetail,
-  geneBounds,
-}: {
-  gene: GeneFromSearch;
-  geneDetail: GeneDetailsFromSearch | null;
-  geneBounds: GeneBounds | null;
+export function GeneInformation ({
+    gene, 
+    geneDetail, 
+    geneBounds
+} : {
+    gene: GeneFromSearch;
+    geneDetail: GeneDetailsFromSearch | null;
+    geneBounds: GeneBounds | null;
 }) {
-  return (
-    <Card className="shadow-lg">
-      <CardHeader>
-        <CardTitle className="text-lg font-medium">Gene Information</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {geneDetail ? (
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="font-medium text-muted-foreground">Symbol</dt>
-              <dd className="font-mono text-foreground">{gene.symbol}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="font-medium text-muted-foreground">Full Name</dt>
-              <dd className="text-right text-foreground">{gene.name}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="font-medium text-muted-foreground">Gene ID</dt>
-              <dd className="font-mono text-foreground">{gene.gene_id}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="font-medium text-muted-foreground">Chromosome</dt>
-              <dd className="font-mono text-foreground">{gene.chrom}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="font-medium text-muted-foreground">Type</dt>
-              <dd className="text-foreground">{geneDetail.type}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="font-medium text-muted-foreground">Source</dt>
-              <dd className="text-foreground">{geneDetail.source}</dd>
-            </div>
-          </dl>
-        ) : (
-          <GeneInformationSkeleton />
-        )}
+    return (
+        <Card className="gap-0 border-none bg-white py-0 shadow-sm">
+            <CardHeader className="pt-4 pb-2">
+                <CardTitle className="text-sm font-normal text-[#3c4f3d]/70">
+                    Gene Information
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                        <div className="flex">
+                            <span className="min-28 w-28 text-xs text-[#3c4f3d]/70">Symbol:</span>
+                            <span className="text-xs font-medium">{gene.symbol}</span>
+                        </div>
 
-        <div className="space-y-2 pt-4">
-          <h4 className="font-medium text-muted-foreground">Gene Bounds</h4>
-          {geneBounds ? (
-            <div className="flex justify-between rounded-md border bg-accent/50 p-3 text-sm">
-              <div className="flex-1 space-y-1">
-                <div className="font-mono text-xs">MIN</div>
-                <div className="font-medium text-foreground">
-                  {geneBounds.min.toLocaleString()}
+                        <div className="flex">
+                            <span className="min-28 w-28 text-xs text-[#3c4f3d]/70">Name:</span>
+                            <span className="text-xs font-medium">{gene.name}</span>
+                        </div>
+                        
+                        {gene.description && gene.description !== gene.name && (
+                            <div className="flex">
+                                <span className="min-28 w-28 text-xs text-[#3c4f3d]/70">Description:</span>
+                                <span className="text-xs font-medium">{gene.description}</span>
+                            </div>
+                        )}
+
+                        <div className="flex">
+                            <span className="min-28 w-28 text-xs text-[#3c4f3d]/70">Chromosome:</span>
+                            <span className="text-xs font-medium">{gene.chrom}</span>
+                        </div>
+
+                        {geneBounds && (
+                            <div className="flex">
+                                <span className="min-28 w-28 text-xs text-[#3c4f3d]/70">Position:</span>
+                                <span className="text-xs font-medium">{Math.min(geneBounds.min, geneBounds.max).toString()} - {""}
+                                    {Math.max(geneBounds.min, geneBounds.max).toString()} (
+                                    {Math.abs(geneBounds.max - geneBounds.min + 1).toString()} bp)
+                                    {geneDetail?.genomicinfo?.[0]?.strand === "-" && " (reverse strand)"}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        {gene.gene_id && (
+                            <div className="flex">
+                                <span className="min-28 w-28 text-xs text-[#3c4f3d]/70">Gene ID:</span>
+                                <span className="text-xs">
+                                    <a 
+                                        href={`https://ncbi.nlm.nih.gov/gene/${gene.gene_id}`} 
+                                        target="_blank"
+                                        className="text-blue-600 hover:underline"
+                                    >
+                                        {gene.gene_id}
+                                        <ExternalLink className="ml-1 mb-1 inline-block h-3 w-3" />
+                                    </a>
+                                </span>
+                            </div>
+                        )}
+
+                        {geneDetail?.organism && (
+                            <div className="flex">
+                                <span className="w-28 text-xs text-[#3c4f3d]/70">
+                                    Organism
+                                </span>
+                                <span className="text-xs">
+                                    {geneDetail.organism.scientificname}{" "}
+                                    {geneDetail.organism.commonname &&
+                                     ` (${geneDetail.organism.commonname})`}
+                                </span>
+                            </div>
+                        )}
+
+                        {geneDetail?.summary && (
+                            <div className="mt-4">
+                                <h3 className="mb-2 text-xs font-normal text-[#3c4f3d]/70">
+                                    Summary:
+                                </h3>
+                                <p className="text-xs leading-relaxed text-[#3c4f3d]">
+                                    {geneDetail.summary}
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
-              </div>
-              <div className="flex-1 space-y-1 text-right">
-                <div className="font-mono text-xs">MAX</div>
-                <div className="font-medium text-foreground">
-                  {geneBounds.max.toLocaleString()}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <Skeleton className="h-16 w-full" />
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+            </CardContent>
+        </Card>
+    )
 }
-
-const GeneInformationSkeleton = () => (
-  <div className="space-y-2 text-sm">
-    <div className="flex justify-between">
-      <Skeleton className="h-4 w-20" />
-      <Skeleton className="h-4 w-16" />
-    </div>
-    <div className="flex justify-between">
-      <Skeleton className="h-4 w-24" />
-      <Skeleton className="h-4 w-32" />
-    </div>
-    <div className="flex justify-between">
-      <Skeleton className="h-4 w-16" />
-      <Skeleton className="h-4 w-20" />
-    </div>
-    <div className="flex justify-between">
-      <Skeleton className="h-4 w-20" />
-      <Skeleton className="h-4 w-12" />
-    </div>
-    <div className="flex justify-between">
-      <Skeleton className="h-4 w-16" />
-      <Skeleton className="h-4 w-24" />
-    </div>
-  </div>
-);

@@ -50,9 +50,6 @@
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
@@ -64,6 +61,6 @@
   }
 
   body.theme-dark {
-    @apply bg-[#0f172a]; /* Premium Dark background (e.g., slate-900) */
+    @apply bg-[#0f17a2]; /* Premium Dark background (e.g., slate-900) */
   }
 }

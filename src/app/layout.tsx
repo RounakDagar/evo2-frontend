@@ -2,6 +2,7 @@ import "~/styles/globals.css";
 
 import { Inter } from "next/font/google";
 import { JetBrains_Mono } from "next/font/google";
+import { cn } from "~/lib/utils";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -26,7 +27,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={`font-sans ${inter.variable} ${jetbrainsMono.variable} theme-dark`}>
+      <body
+        className={cn(
+          "font-sans theme-dark",
+          inter.variable,
+          jetbrainsMono.variable
+        )}
+      >
         {children}
       </body>
     </html>
