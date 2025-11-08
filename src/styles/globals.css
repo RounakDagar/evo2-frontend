@@ -4,48 +4,71 @@
 
 @layer base {
   :root {
-    --background: hsl(0 0% 100%); /* Card background */
-    --foreground: hsl(222.2 84.0% 4.9%);
-    --card: hsl(0 0% 100%);
-    --card-foreground: hsl(222.2 84.0% 4.9%);
-    --popover: hsl(0 0% 100%);
-    --popover-foreground: hsl(222.2 84.0% 4.9%);
-    --primary: hsl(26 70% 56%); /* Orange */
-    --primary-foreground: hsl(26 70% 96%);
-    --secondary: hsl(122 12% 27%); /* Dark Green */
-    --secondary-foreground: hsl(122 12% 97%);
-    --muted: hsl(210 40% 96.1%);
-    --muted-foreground: hsl(215.4 16.3% 46.9%);
-    --accent: hsl(210 40% 96.1%);
-    --accent-foreground: hsl(210 40% 9.8%);
-    --destructive: hsl(0 84.2% 60.2%);
-    --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(214.3 31.8% 91.4%);
-    --input: hsl(214.3 31.8% 91.4%);
-    --ring: hsl(26 70% 56%); /* Orange ring */
+    /* Light mode - keeping it relatively clean but tinted for consistency if needed later, 
+       though the focus is predominantly dark mode for this aesthetic. */
+    --background: 224 71% 95%;
+    --foreground: 224 71% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71% 4%;
+    --primary: 26 70% 56%; /* Original orange as fallback for light mode */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 90%;
+    --secondary-foreground: 224 71% 4%;
+    --muted: 220 14% 90%;
+    --muted-foreground: 220 8% 46%;
+    --accent: 220 14% 90%;
+    --accent-foreground: 224 71% 4%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 13% 85%;
+    --input: 220 13% 85%;
+    --ring: 26 70% 56%;
     --radius: 0.75rem;
   }
 
   .dark {
-    --background: hsl(222 47% 11%); /* Card background (e.g., slate-800) */
-    --foreground: hsl(210 40% 98%);
-    --card: hsl(222 47% 11%);
-    --card-foreground: hsl(210 40% 98%);
-    --popover: hsl(222 47% 11%);
-    --popover-foreground: hsl(210 40% 98%);
-    --primary: hsl(26 70% 56%); /* Orange */
-    --primary-foreground: hsl(26 70% 96%);
-    --secondary: hsl(215 28% 25%); /* Darker Muted (e.g., slate-700) */
-    --secondary-foreground: hsl(210 40% 98%);
-    --muted: hsl(215 28% 25%);
-    --muted-foreground: hsl(215 20% 65%);
-    --accent: hsl(215 28% 19%); /* Hover (slightly darker than card) */
-    --accent-foreground: hsl(210 40% 98%);
-    --destructive: hsl(0 63% 31%);
-    --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(215 28% 19%);
-    --input: hsl(215 28% 19%);
-    --ring: hsl(26 70% 56%); /* Orange ring */
+    /* --- BIOLUMINESCENT DARK THEME --- */
+    
+    /* Deep Midnight Background (Rich blue-black, not flat gray) */
+    --background: 230 35% 7%; 
+    /* Bright, slightly bluish white text for readability against deep backgrounds */
+    --foreground: 180 20% 97%; 
+
+    /* Glassmorphic Card Base (semi-transparent deep blue) */
+    --card: 230 40% 10%; 
+    --card-foreground: 180 20% 97%;
+
+    --popover: 230 40% 10%;
+    --popover-foreground: 180 20% 97%;
+
+    /* Primary: Electric Teal (Used for solid primary actions if gradient isn't applied) */
+    --primary: 178 100% 50%;
+    --primary-foreground: 230 40% 10%; /* Dark text on bright neon buttons */
+
+    /* Secondary: Muted deep blue for less important items */
+    --secondary: 226 30% 15%;
+    --secondary-foreground: 180 20% 90%;
+
+    /* Muted: For subtext and de-emphasized backgrounds */
+    --muted: 226 25% 15%;
+    --muted-foreground: 215 20% 70%;
+
+    /* Accent: Slightly lighter blue for hover states */
+    --accent: 226 30% 20%;
+    --accent-foreground: 180 20% 97%;
+
+    /* Destructive: Neon Magenta/Rose */
+    --destructive: 331 100% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border: Subtle deep blue line */
+    --border: 226 30% 20%;
+    /* Input: Matches border initially, glows on focus */
+    --input: 226 30% 25%;
+    /* Ring: Used for focus states - matching primary teal */
+    --ring: 178 100% 50%;
   }
 }
 
@@ -54,13 +77,25 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
-
-  /* Custom App Background */
-  body.theme-light {
-    @apply bg-[#e9eeea]; /* Your original light green background */
-  }
-
+  
+  /* Force dark mode by default if user hasn't selected otherwise, 
+     as this design is heavily optimized for it */
   body.theme-dark {
-    @apply bg-[#0f17a2]; /* Premium Dark background (e.g., slate-900) */
+    @apply bg-background; 
+    /* Optional: Add a very subtle majestic radial gradient to the whole page background */
+    background-image: radial-gradient(circle at 50% 0%, hsl(230, 40%, 15%) 0%, hsl(230, 35%, 7%) 60%);
+    background-attachment: fixed;
+  }
+}
+
+@layer utilities {
+  /* Custom Class for Glassmorphism that can be applied anywhere */
+  .glass {
+    @apply bg-background/60 backdrop-blur-md border border-white/10 supports-[backdrop-filter]:bg-background/40;
+  }
+  
+  /* Utility for the primary bioluminescent gradient text */
+  .text-gradient-bio {
+    @apply bg-gradient-to-r from-[hsl(178,100%,50%)] to-[hsl(270,100%,60%)] bg-clip-text text-transparent;
   }
 }

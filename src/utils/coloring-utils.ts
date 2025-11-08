@@ -1,19 +1,23 @@
 /**
  * Returns a Tailwind CSS class for a given nucleotide.
- * These colors are chosen to be distinct and look good in dark mode.
+ * Updated for Bioluminescent Neon aesthetic.
  */
 export function getNucleotideColorClass(nucleotide: string): string {
   switch (nucleotide.toUpperCase()) {
     case "A":
-      return "text-green-400"; // Adenine
+      // Neon Green + faint glow
+      return "text-neon-A drop-shadow-[0_0_6px_rgba(57,255,20,0.5)]"; 
     case "T":
-      return "text-blue-400"; // Thymine
+      // Neon Blue + faint glow
+      return "text-neon-T drop-shadow-[0_0_6px_rgba(31,81,255,0.5)]";
     case "C":
-      return "text-orange-400"; // Cytosine
+      // Neon Orange + faint glow
+      return "text-neon-C drop-shadow-[0_0_6px_rgba(255,145,0,0.5)]";
     case "G":
-      return "text-red-400"; // Guanine
+      // Neon Yellow + faint glow
+      return "text-neon-G drop-shadow-[0_0_6px_rgba(255,255,0,0.5)]";
     default:
-      return "text-gray-500"; // For 'N' or other
+      return "text-muted-foreground"; // For 'N' or other
   }
 }
 
@@ -28,18 +32,25 @@ export function formatNumberWithCommas(value: number | string): string {
   return num.toLocaleString();
 }
 
+/**
+ * Returns classes for variant classification.
+ * Updated for Glassmorphic Neon pills.
+ */
 export function getClassificationColorClasses(classification: string): string {
   if (!classification) {
-    return "bg-yellow-100 text-yellow-800";
+     return "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20";
   }
 
   const lowercaseClass = classification.toLowerCase();
 
   if (lowercaseClass.includes("pathogenic")) {
-    return "bg-red-100 text-red-800";
+    // Neon Magenta style
+    return "bg-neon-magenta/10 text-neon-magenta border border-neon-magenta/30 shadow-glow-destructive";
   } else if (lowercaseClass.includes("benign")) {
-    return "bg-green-100 text-green-800";
+    // Neon Cyan/Green style
+    return "bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 shadow-[0_0_15px_-5px_hsl(165,100%,50%)]";
   } else {
-    return "bg-yellow-100 text-yellow-800";
+     // Uncertain / Other - classic warning yellow
+    return "bg-yellow-500/10 text-yellow-500 border border-yellow-500/30";
   }
 }
